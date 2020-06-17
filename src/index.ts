@@ -9,7 +9,7 @@ export default class RssFeed extends EventEmitter {
     private _interval: number;
 
     constructor(urls?: string[], interval?: number) {
-        super();
+        super()
         this.tools = new Fetch()
         this.urls = urls || []
         this._interval = (interval || 60) * 1000
@@ -20,7 +20,14 @@ export default class RssFeed extends EventEmitter {
             .then(data => data.text())
             .then(async rawXml => {
                 const xml = await this.tools.parseXmlToJson(rawXml)
+                    .catch(this.emitError)
+
                 return xml.rss.channel[0]
             })
+            .catch(this.emitError)
+    }
+
+    private emitError(err: string | ErrorEvent) {
+        this.emit('error', err)
     }
 }
