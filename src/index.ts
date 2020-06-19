@@ -10,6 +10,7 @@ export default class RssFeed extends EventEmitter {
     urls: string[]
     private _interval: number;
     cache: Cache;
+    private timerId: ReturnType<typeof setTimeout>;
 
     constructor(urls?: string[], interval?: number) {
         super()
@@ -17,6 +18,7 @@ export default class RssFeed extends EventEmitter {
         this.urls = urls || []
         this._interval = (interval || 60) * 1000
         this.cache = {}
+        this.timerId = 0
     }
 
     getAllArticles(url: string): Promise<Article[]> {
@@ -26,7 +28,7 @@ export default class RssFeed extends EventEmitter {
                 const xml = await this.tools.parseXmlToJson(rawXml)
                     .catch(this.emitError)
 
-                return xml.rss.channel[0].item.map(item => {
+                return xml.rss.channel[0].item.map((item: any) => {
                     item.title = item.title[0]
                     return item
                 })
@@ -34,11 +36,12 @@ export default class RssFeed extends EventEmitter {
             .catch(this.emitError)
     }
 
-    checkUpdate(url: string): void {
+    checkUpdate(url: string, cacheOnly?: boolean): void {
+
         this.getAllArticles(url)
             .then((articles) => {
                 for (const article of articles) {
-                    if (!this.cacheHasTitle(url, article.title)) {
+                    if (!this.cacheHasTitle(url, article.title) && !cacheOnly) {
                         this.emit('update', article)
                     } else break;
                 }
@@ -50,7 +53,33 @@ export default class RssFeed extends EventEmitter {
 
     checkAllUpdates(): void {
         const requests = this.urls.map(url => this.checkUpdate(url))
-        Promise.all(requests)
+        Promise.allSettled(requests)
+            .then(results => {
+                for (const result of results) {
+
+                }
+            })
+    }
+
+    private cacheAll(): void {
+        const requests = this.urls.map(url => this.checkUpdate(url, true))
+        Promise.allSettled(requests)
+            .then(results => {
+                for (const result of results) {
+                    if (result.status === 'rejected') {
+                        this.emitError(result.reason)
+                    }
+                    if (result.status === 'fulfilled') {
+                        console.log(result)
+                        Deno.exit(0)
+                    }
+                }
+            })
+    }
+    
+    startListening(): void {
+        this.cacheAll()
+        this.timerId = setInterval(this.checkAllUpdates, this._interval)
     }
 
     private emitError(err: string | ErrorEvent) {
