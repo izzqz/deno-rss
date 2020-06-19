@@ -1,4 +1,4 @@
-.idea/\
+.idea
 
 # Logs
 logs
@@ -104,3 +104,5 @@ dist
 
 # TernJS port file
 .tern-port
+src/test.ts
+src/types/
