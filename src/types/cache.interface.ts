@@ -1,5 +1,6 @@
-import {Article} from "./article.interface.ts";
-
-export interface ArticlesCache {
-    [key: string]: Article[]
+export interface Cache {
+    [key: string]: {
+        last: string | null,
+        second: string | null
+    }
 }
