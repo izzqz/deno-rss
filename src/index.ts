@@ -5,6 +5,7 @@ import { Article } from "./types/article.interface.ts";
 
 export default class RssFeed extends EventEmitter {
     private tools: {
+        // TODO: Delete this shit
         parseXmlToJson(data: string): any
     };
     urls: string[]
@@ -26,7 +27,7 @@ export default class RssFeed extends EventEmitter {
             .then(data => data.text())
             .then(async rawXml => {
                 const xml = await this.tools.parseXmlToJson(rawXml)
-                    .catch(this.emitError)
+                    .catch(this.emitError.bind(this))
 
                 return xml.rss.channel[0].item
                     .map((item: any) => {
@@ -34,27 +35,32 @@ export default class RssFeed extends EventEmitter {
                         return item
                     })
             })
-            .catch(this.emitError)
+            .catch(this.emitError.bind(this))
     }
 
-    checkUpdate(url: string, cacheOnly?: boolean): void {
-        this.getAllArticles(url)
-            .then((articles) => {
-                for (const article of articles) {
-                    if (!this.cached(url, article.title) && !cacheOnly) {
-                        this.emit('update', article)
-                    } else break;
-                }
+    checkUpdate(url: string, cacheOnly?: boolean): Promise<void> {
+        return new Promise((resolve, reject) => {
+            this.getAllArticles(url)
+                .then((articles) => {
+                    for (const article of articles) {
+                        if (!this.cached(url, article.title) && !cacheOnly) {
+                            this.emit('update', article)
+                        } else break;
+                    }
 
-                const titles = articles.map(a => a.title).slice(0, 2)
-                this.saveToCache(url, titles[0], titles[1])
-            })
+                    const titles = articles.map(a => a.title).slice(0, 2)
+                    this.saveToCache(url, titles[0], titles[1])
+                    resolve()
+                })
+                .catch(reject)
+        })
     }
 
     checkAllUpdates(): void {
         const requests = this.urls.map(url => this.checkUpdate(url))
+        console.log('.\n')
         Promise.all(requests)
-            .catch(this.emitError)
+            .catch(this.emitError.bind(this))
     }
 
     private cacheAll(): void {
